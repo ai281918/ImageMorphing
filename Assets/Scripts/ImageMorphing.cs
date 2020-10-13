@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
-using System;
+using System.Threading.Tasks;
 
 public struct PointPair{
     public Vector2 p, q, qp, p_qp;
@@ -52,18 +52,6 @@ public class ImageMorphing : MonoBehaviour
         imageResult.sprite = Sprite.Create (textureResult, new Rect (0, 0, textureResult.width, textureResult.height), Vector2.zero);
     }
 
-    // Start is called before the first frame update
-    void Start()
-    {
-        
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
-
     public void Process(){
         targerFeatureList.Clear();
         featureList_1.Clear();
@@ -81,9 +69,8 @@ public class ImageMorphing : MonoBehaviour
             }
         }
 
-        for(int i=0;i<textureA.width;++i){
+        Parallel.For(0, textureA.width, i => {
             for(int j=0;j<textureA.height;++j){
-                // Image 1
                 Vector2 xp_1 = Vector2.zero, xp_2 = Vector2.zero;
                 float ws = 0;
                 float w;
@@ -93,13 +80,17 @@ public class ImageMorphing : MonoBehaviour
                     float v = Vector2.Dot(x - targerFeatureList[k].p, targerFeatureList[k].p_qp) / targerFeatureList[k].qp_magnitude;
                     // p = 0, a = 1, b = 2
                     if(u > 1){
-                        w = Mathf.Pow(Mathf.Pow(Mathf.Sqrt(targerFeatureList[k].qp_magnitude), p) / (a + Vector2.Distance(x, targerFeatureList[k].q)), b);
+                        // w = Mathf.Pow(Mathf.Pow(Mathf.Sqrt(targerFeatureList[k].qp_magnitude), p) / (a + Vector2.Distance(x, targerFeatureList[k].q)), b);
+                        // 由於p=0 length^p可以直接簡化為1
+                        w = Mathf.Pow(1 / (a + Vector2.Distance(x, targerFeatureList[k].q)), b);
                     }
                     else if(u < 0){
-                        w = Mathf.Pow(Mathf.Pow(Mathf.Sqrt(targerFeatureList[k].qp_magnitude), p) / (a + Vector2.Distance(x, targerFeatureList[k].p)), b);
+                        // w = Mathf.Pow(Mathf.Pow(Mathf.Sqrt(targerFeatureList[k].qp_magnitude), p) / (a + Vector2.Distance(x, targerFeatureList[k].p)), b);
+                        w = Mathf.Pow(1 / (a + Vector2.Distance(x, targerFeatureList[k].p)), b);
                     }
                     else{
-                        w = Mathf.Pow(Mathf.Pow(Mathf.Sqrt(targerFeatureList[k].qp_magnitude), p) / (a + Mathf.Abs(v)), b);
+                        // w = Mathf.Pow(Mathf.Pow(Mathf.Sqrt(targerFeatureList[k].qp_magnitude), p) / (a + Mathf.Abs(v)), b);
+                        w = Mathf.Pow(1 / (a + Mathf.Abs(v)), b);
                     }
                     xp_1 += (featureList_1[k].p + u * (featureList_1[k].qp) + v * featureList_1[k].p_qp / featureList_1[k].qp_magnitude)*w;
                     xp_2 += (featureList_2[k].p + u * (featureList_2[k].qp) + v * featureList_2[k].p_qp / featureList_2[k].qp_magnitude)*w;
@@ -107,11 +98,12 @@ public class ImageMorphing : MonoBehaviour
                 }
                 xp_1 /= ws;
                 xp_2 /= ws;
-                textureATmp.SetPixel(i, j, ColorInterpolation(xp_1, textureA));
-                textureBTmp.SetPixel(i, j, ColorInterpolation(xp_2, textureB));
-                textureResult.SetPixel(i, j, Color.Lerp(textureATmp.GetPixel(i, j), textureBTmp.GetPixel(i, j), alpha));
+                textureATmp.SetPixel((int)i, j, ColorInterpolation(xp_1, textureA));
+                textureBTmp.SetPixel((int)i, j, ColorInterpolation(xp_2, textureB));
+                textureResult.SetPixel((int)i, j, Color.Lerp(textureATmp.GetPixel((int)i, j), textureBTmp.GetPixel((int)i, j), alpha));
             }
-        }
+        });
+
         textureATmp.Apply();
         textureBTmp.Apply();
         textureResult.Apply();
